@@ -11,7 +11,7 @@ from pinecone import Pinecone
 
 load_dotenv()
 
-# 💬 Initialize chat memory EARLY (important)
+# 💬 Initialize chat memory EARLY
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -98,7 +98,7 @@ User Question:
 {question}
 """)
 
-# 🔗 RAG Chain (NO session state inside)
+# 🔗 RAG Chain
 rag_chain = (
     {
         "context": lambda x: format_docs(retriever.invoke(x["question"])),
@@ -125,18 +125,12 @@ if user_input := st.chat_input("Ask about your PDFs..."):
     with st.chat_message("assistant"):
         with st.spinner("🤖 Thinking..."):
             history_text = format_history(st.session_state.messages[-6:])
-            docs = retriever.invoke(user_input)
-
             answer = rag_chain.invoke({
                 "question": user_input,
                 "history": history_text
             })
 
         st.markdown(answer)
-
-        with st.expander("📄 Sources"):
-            for i, doc in enumerate(docs):
-                st.write(f"Source {i+1} — Page {doc.metadata.get('page', 'N/A')}")
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
 
