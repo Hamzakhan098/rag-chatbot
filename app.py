@@ -19,9 +19,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# 🎨 ---------- PROFESSIONAL UI CSS (unchanged) ----------
+# 🎨 ---------- UI CSS (kept same) ----------
 st.markdown("""<style>
-/* KEEPING YOUR EXISTING CSS EXACTLY AS IS */
+/* YOUR EXISTING CSS */
 </style>""", unsafe_allow_html=True)
 
 # 🖤 ---------- HEADER ----------
@@ -48,8 +48,11 @@ if not all_docs:
     st.error("❌ No PDFs found in `data` folder. Add PDFs and rerun.")
     st.stop()
 
-# ✂️ ---------- SPLIT TEXT ----------
-text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+# ✂️ ---------- IMPROVED CHUNKING ----------
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1500,
+    chunk_overlap=300
+)
 docs = text_splitter.split_documents(all_docs)
 
 # 🧠 ---------- EMBEDDINGS ----------
@@ -60,10 +63,10 @@ pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 index = pc.Index("buddy-ai-index")
 
 vectorstore = PineconeVectorStore(index=index, embedding=embeddings, text_key="text")
-retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+retriever = vectorstore.as_retriever(search_kwargs={"k": 8})
 
 # 🚀 ---------- UPLOAD TO PINECONE IF EMPTY ----------
-if len(index.describe_index_stats().get("namespaces", {})) == 0:
+if index.describe_index_stats()["total_vector_count"] == 0:
     with st.spinner("Uploading documents to Pinecone (first time setup)..."):
         vectorstore.add_documents(docs)
     st.success("Documents uploaded to Pinecone!")
@@ -71,22 +74,43 @@ if len(index.describe_index_stats().get("namespaces", {})) == 0:
 # 🤖 ---------- LLM ----------
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
+# 🧠 ---------- MEMORY FORMATTER ----------
+def format_history(messages):
+    history_text = ""
+    for m in messages:
+        role = "User" if m["role"] == "user" else "Assistant"
+        history_text += f"{role}: {m['content']}\n"
+    return history_text
+
+# 📄 ---------- DOC FORMATTER ----------
+def format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
+
+# 🧾 ---------- SMARTER PROMPT ----------
 prompt = ChatPromptTemplate.from_template("""
-You are Buddy AI, a helpful assistant. Answer ONLY using the provided context.
-If the answer is not in the context, say "I don't know."
+You are Buddy AI, a helpful assistant answering questions from company documents.
+
+Use the conversation history and provided context to answer naturally.
+If the exact answer is not found, give the closest helpful answer based on context.
+Only say "I don't know" if the context is completely unrelated.
+
+Chat History:
+{history}
 
 Context:
 {context}
 
-Question:
+User Question:
 {question}
 """)
 
-def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
-
+# 🔗 ---------- RAG PIPELINE WITH MEMORY ----------
 rag_chain = (
-    {"context": retriever | format_docs, "question": lambda x: x}
+    {
+        "context": retriever | format_docs,
+        "question": lambda x: x,
+        "history": lambda x: format_history(st.session_state.messages[-6:])
+    }
     | prompt
     | llm
     | StrOutputParser()
@@ -108,12 +132,18 @@ if user_input := st.chat_input("Ask about your PDFs..."):
 
     with st.chat_message("assistant"):
         with st.spinner("🤖 Thinking..."):
+            docs = retriever.invoke(user_input)
             answer = rag_chain.invoke(user_input)
+
         st.markdown(answer)
+
+        with st.expander("📄 Sources"):
+            for i, doc in enumerate(docs):
+                st.write(f"Source {i+1} — Page {doc.metadata.get('page', 'N/A')}")
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
 
-# Sidebar
+# ⚙️ ---------- SIDEBAR ----------
 with st.sidebar:
     st.markdown("### ⚙️ Controls")
     if st.button("🗑️ Clear Chat", use_container_width=True):
