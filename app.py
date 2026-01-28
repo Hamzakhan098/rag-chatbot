@@ -11,33 +11,28 @@ from pinecone import Pinecone
 
 load_dotenv()
 
-# 🌙 ---------- PAGE CONFIG ----------
-st.set_page_config(
-    page_title="Buddy AI",
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+# 💬 Initialize chat memory EARLY (important)
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-# 🎨 ---------- UI CSS (kept same) ----------
-st.markdown("""<style>
-/* YOUR EXISTING CSS */
-</style>""", unsafe_allow_html=True)
+# 🌙 Page config
+st.set_page_config(page_title="Buddy AI", page_icon="🤖", layout="wide")
 
-# 🖤 ---------- HEADER ----------
+st.markdown("""<style>/* YOUR CSS */</style>""", unsafe_allow_html=True)
+
 st.markdown("""
 <div class="header">
     <h1 class="logo">🤖 Buddy AI</h1>
 </div>
 """, unsafe_allow_html=True)
 
-# 💬 ---------- CHAT MEMORY ----------
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# 📂 ---------- LOAD PDFs ----------
+# 📂 LOAD PDFs SAFELY
 DATA_PATH = os.path.join(os.getcwd(), "data")
 all_docs = []
+
+if not os.path.exists(DATA_PATH):
+    st.error("❌ 'data' folder not found. Upload PDFs to GitHub.")
+    st.stop()
 
 for file in os.listdir(DATA_PATH):
     if file.endswith(".pdf"):
@@ -45,54 +40,53 @@ for file in os.listdir(DATA_PATH):
         all_docs.extend(loader.load())
 
 if not all_docs:
-    st.error("❌ No PDFs found in `data` folder. Add PDFs and rerun.")
+    st.error("❌ No PDFs found in `data` folder.")
     st.stop()
 
-# ✂️ ---------- IMPROVED CHUNKING ----------
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1500,
-    chunk_overlap=300
-)
+# ✂️ Chunking
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=300)
 docs = text_splitter.split_documents(all_docs)
 
-# 🧠 ---------- EMBEDDINGS ----------
+# 🧠 Embeddings
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
-# 🌲 ---------- PINECONE CONNECTION ----------
+# 🌲 Pinecone Setup
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
 index = pc.Index("buddy-ai-index")
 
 vectorstore = PineconeVectorStore(index=index, embedding=embeddings, text_key="text")
-retriever = vectorstore.as_retriever(search_kwargs={"k": 8})
+retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
 
-# 🚀 ---------- UPLOAD TO PINECONE IF EMPTY ----------
-if index.describe_index_stats()["total_vector_count"] == 0:
-    with st.spinner("Uploading documents to Pinecone (first time setup)..."):
+# 🚀 Upload to Pinecone only once
+stats = index.describe_index_stats()
+if stats["total_vector_count"] == 0:
+    with st.spinner("🔄 First-time setup: Uploading documents to Pinecone..."):
         vectorstore.add_documents(docs)
-    st.success("Documents uploaded to Pinecone!")
+    st.success("✅ Documents uploaded!")
+else:
+    st.info("📦 Using existing Pinecone index")
 
-# 🤖 ---------- LLM ----------
+# 🤖 LLM
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
-# 🧠 ---------- MEMORY FORMATTER ----------
+# 🧠 History formatter
 def format_history(messages):
-    history_text = ""
-    for m in messages:
-        role = "User" if m["role"] == "user" else "Assistant"
-        history_text += f"{role}: {m['content']}\n"
-    return history_text
+    return "\n".join(
+        f"{'User' if m['role']=='user' else 'Assistant'}: {m['content']}"
+        for m in messages
+    )
 
-# 📄 ---------- DOC FORMATTER ----------
+# 📄 Document formatter
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
 
-# 🧾 ---------- SMARTER PROMPT ----------
+# 🧾 Prompt Template
 prompt = ChatPromptTemplate.from_template("""
 You are Buddy AI, a helpful assistant answering questions from company documents.
 
 Use the conversation history and provided context to answer naturally.
-If the exact answer is not found, give the closest helpful answer based on context.
-Only say "I don't know" if the context is completely unrelated.
+If the answer is not found, give the closest helpful answer.
+Only say "I don't know" if completely unrelated.
 
 Chat History:
 {history}
@@ -104,36 +98,39 @@ User Question:
 {question}
 """)
 
-# 🔗 ---------- RAG PIPELINE WITH MEMORY ----------
+# 🔗 RAG Chain (NO session state inside)
 rag_chain = (
     {
-        "context": retriever | format_docs,
-        "question": lambda x: x,
-        "history": lambda x: format_history(st.session_state.messages[-6:])
+        "context": lambda x: format_docs(retriever.invoke(x["question"])),
+        "question": lambda x: x["question"],
+        "history": lambda x: x["history"],
     }
     | prompt
     | llm
     | StrOutputParser()
 )
 
-# 💬 ---------- DISPLAY CHAT ----------
+# 💬 Display previous chat
 for message in st.session_state.messages:
-    with st.chat_message(
-        message["role"],
-        avatar="👤" if message["role"] == "user" else "🤖"
-    ):
+    with st.chat_message(message["role"], avatar="👤" if message["role"] == "user" else "🤖"):
         st.markdown(message["content"])
 
-# ⌨️ ---------- INPUT ----------
+# ⌨️ User input
 if user_input := st.chat_input("Ask about your PDFs..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
+
     with st.chat_message("user"):
         st.markdown(user_input)
 
     with st.chat_message("assistant"):
         with st.spinner("🤖 Thinking..."):
+            history_text = format_history(st.session_state.messages[-6:])
             docs = retriever.invoke(user_input)
-            answer = rag_chain.invoke(user_input)
+
+            answer = rag_chain.invoke({
+                "question": user_input,
+                "history": history_text
+            })
 
         st.markdown(answer)
 
@@ -143,11 +140,9 @@ if user_input := st.chat_input("Ask about your PDFs..."):
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
 
-# ⚙️ ---------- SIDEBAR ----------
+# ⚙️ Sidebar
 with st.sidebar:
-    st.markdown("### ⚙️ Controls")
     if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
-    st.markdown("---")
     st.info("☁️ Using Pinecone Vector Database")
