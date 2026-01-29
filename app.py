@@ -18,11 +18,244 @@ if "messages" not in st.session_state:
 # 🌙 Page config
 st.set_page_config(page_title="Buddy AI", page_icon="🤖", layout="wide")
 
-st.markdown("""<style>/* YOUR CSS */</style>""", unsafe_allow_html=True)
-
+# 🎨 Modern Mobile-Inspired CSS
 st.markdown("""
-<div class="header">
-    <h1 class="logo">🤖 Buddy AI</h1>
+<style>
+    /* Reset and base styles */
+    .stApp {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    /* Hide default Streamlit elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Main container */
+    .main .block-container {
+        padding: 0 !important;
+        max-width: 480px !important;
+        margin: 0 auto;
+    }
+    
+    /* Header */
+    .chat-header {
+        background: white;
+        padding: 20px 20px 15px 20px;
+        border-radius: 0 0 25px 25px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }
+    
+    .header-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 22px;
+        font-weight: 600;
+        color: #2d3748;
+    }
+    
+    .header-icon {
+        font-size: 28px;
+    }
+    
+    .header-buttons {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .lang-btn {
+        background: #4299e1;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 500;
+        border: none;
+        cursor: pointer;
+    }
+    
+    .delete-btn {
+        background: #f7fafc;
+        color: #718096;
+        padding: 8px 12px;
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        font-size: 18px;
+    }
+    
+    /* Chat container */
+    .chat-container {
+        background: white;
+        border-radius: 25px;
+        padding: 20px;
+        margin: 0 15px;
+        min-height: 500px;
+        max-height: 600px;
+        overflow-y: auto;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    
+    /* Message bubbles */
+    .message-wrapper {
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .user-message-wrapper {
+        align-items: flex-end;
+    }
+    
+    .bot-message-wrapper {
+        align-items: flex-start;
+    }
+    
+    .message-label {
+        font-size: 12px;
+        color: #718096;
+        margin-bottom: 5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 500;
+    }
+    
+    .message-bubble {
+        padding: 15px 18px;
+        border-radius: 20px;
+        max-width: 80%;
+        word-wrap: break-word;
+        line-height: 1.5;
+        font-size: 15px;
+    }
+    
+    .user-bubble {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-bottom-right-radius: 5px;
+    }
+    
+    .bot-bubble {
+        background: #f7fafc;
+        color: #2d3748;
+        border-bottom-left-radius: 5px;
+        border: 1px solid #e2e8f0;
+    }
+    
+    /* Input area */
+    .input-container {
+        position: fixed;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        max-width: 480px;
+        background: white;
+        padding: 15px 20px 25px 20px;
+        border-radius: 25px 25px 0 0;
+        box-shadow: 0 -4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .stChatInput {
+        border-radius: 25px !important;
+    }
+    
+    /* Streamlit chat message overrides */
+    .stChatMessage {
+        background: transparent !important;
+        padding: 0 !important;
+    }
+    
+    /* Custom scrollbar */
+    .chat-container::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .chat-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    
+    .chat-container::-webkit-scrollbar-thumb {
+        background: #cbd5e0;
+        border-radius: 10px;
+    }
+    
+    .chat-container::-webkit-scrollbar-thumb:hover {
+        background: #a0aec0;
+    }
+    
+    /* Loading animation */
+    .thinking-dots {
+        display: inline-flex;
+        gap: 4px;
+    }
+    
+    .thinking-dots span {
+        width: 8px;
+        height: 8px;
+        background: #667eea;
+        border-radius: 50%;
+        animation: bounce 1.4s infinite ease-in-out both;
+    }
+    
+    .thinking-dots span:nth-child(1) {
+        animation-delay: -0.32s;
+    }
+    
+    .thinking-dots span:nth-child(2) {
+        animation-delay: -0.16s;
+    }
+    
+    @keyframes bounce {
+        0%, 80%, 100% {
+            transform: scale(0);
+        }
+        40% {
+            transform: scale(1);
+        }
+    }
+    
+    /* Sidebar styling */
+    section[data-testid="stSidebar"] {
+        background: white;
+    }
+    
+    /* Button styling */
+    .stButton button {
+        width: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        padding: 12px;
+        font-weight: 600;
+        font-size: 16px;
+    }
+    
+    .stButton button:hover {
+        background: linear-gradient(135deg, #5568d3 0%, #6b4193 100%);
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# 📱 Header
+st.markdown("""
+<div class="chat-header">
+    <div class="header-title">
+        <span class="header-icon">🤖</span>
+        <span>Buddy AI</span>
+    </div>
+    <div class="header-buttons">
+        <button class="lang-btn">हिंदी</button>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -31,7 +264,7 @@ DATA_PATH = os.path.join(os.getcwd(), "data")
 all_docs = []
 
 if not os.path.exists(DATA_PATH):
-    st.error("❌ 'data' folder not found. Upload PDFs to GitHub.")
+    st.error("❌ 'data' folder not found. Upload PDFs to the data directory.")
     st.stop()
 
 for file in os.listdir(DATA_PATH):
@@ -63,8 +296,6 @@ if stats["total_vector_count"] == 0:
     with st.spinner("🔄 First-time setup: Uploading documents to Pinecone..."):
         vectorstore.add_documents(docs)
     st.success("✅ Documents uploaded!")
-else:
-    st.info("📦 Using existing Pinecone index")
 
 # 🤖 LLM
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
@@ -84,7 +315,7 @@ def format_docs(docs):
 prompt = ChatPromptTemplate.from_template("""
 You are Buddy AI, a helpful assistant answering questions from company documents.
 
-Use the conversation history and provided context to answer naturally.
+Use the conversation history and provided context to answer naturally and professionally.
 If the answer is not found, give the closest helpful answer.
 Only say "I don't know" if completely unrelated.
 
@@ -110,33 +341,64 @@ rag_chain = (
     | StrOutputParser()
 )
 
-# 💬 Display previous chat
-for message in st.session_state.messages:
-    with st.chat_message(message["role"], avatar="👤" if message["role"] == "user" else "🤖"):
-        st.markdown(message["content"])
+# 💬 Chat display container
+st.markdown('<div class="chat-container">', unsafe_allow_html=True)
+
+# Display previous chat with custom styling
+for idx, message in enumerate(st.session_state.messages):
+    if message["role"] == "user":
+        st.markdown(f"""
+        <div class="message-wrapper user-message-wrapper">
+            <div class="message-label">
+                <span>You</span>
+            </div>
+            <div class="message-bubble user-bubble">
+                {message["content"]}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div class="message-wrapper bot-message-wrapper">
+            <div class="message-label">
+                🤖 <span>Buddy</span>
+            </div>
+            <div class="message-bubble bot-bubble">
+                {message["content"]}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 # ⌨️ User input
-if user_input := st.chat_input("Ask about your PDFs..."):
+if user_input := st.chat_input("Type your question here..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
-
-    with st.chat_message("user"):
-        st.markdown(user_input)
-
-    with st.chat_message("assistant"):
-        with st.spinner("🤖 Thinking..."):
-            history_text = format_history(st.session_state.messages[-6:])
-            answer = rag_chain.invoke({
-                "question": user_input,
-                "history": history_text
-            })
-
-        st.markdown(answer)
-
+    
+    # Show thinking animation
+    with st.spinner(""):
+        history_text = format_history(st.session_state.messages[-6:])
+        answer = rag_chain.invoke({
+            "question": user_input,
+            "history": history_text
+        })
+    
     st.session_state.messages.append({"role": "assistant", "content": answer})
+    st.rerun()
 
 # ⚙️ Sidebar
 with st.sidebar:
+    st.markdown("### ⚙️ Settings")
+    
     if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
-    st.info("☁️ Using Pinecone Vector Database")
+    
+    st.divider()
+    
+    st.info("💡 **Buddy AI**\n\nAsk me anything about:\n- Your documents\n- Company information\n- Policies & procedures\n- Any questions you have!")
+    
+    st.divider()
+    
+    st.caption("☁️ Powered by Pinecone Vector Database")
+    st.caption("🤖 Using OpenAI GPT-4o-mini")
